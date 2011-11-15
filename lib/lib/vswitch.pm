@@ -2,6 +2,7 @@ use strict;
 use warnings;
 package lib::vswitch;
 
+use File::ShareDir 'class_file';
 
 =head1 NAME
 
@@ -161,6 +162,30 @@ is itself a problem.
 
 Will making it easier to manage the knock-on problems make that worse?
 
+=head1 CLASS METHODS
+
+These are not particularly intended for normal use by client code, but
+might form some useful building blocks.
+
+=head2 find($dist, $vsn)
+
+Return the path for the specified version of the named dist.
+
+This is based on L<File::ShareDir/class_file> and so should respect
+subclassing of L<lib::vswitch> (XXX: untested).
+
 =cut
+
+sub find {
+  my ($called, $name, $vsn) = @_;
+  my $inst = eval { $called->class_file("$name--$vsn") };
+  my $err = $@;
+  if (!defined $inst) {
+    require Carp;
+    Carp::croak("$called cannot find $name version $vsn: $err");
+  } else {
+    return $inst;
+  }
+}
 
 1;
