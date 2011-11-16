@@ -188,4 +188,51 @@ sub find {
   }
 }
 
+
+=head2 uselib($dist, $vsn)
+
+Discover the new path using L</find>, then ask L<lib> to add it to
+C<@INC> .
+
+=cut
+
+sub uselib {
+  my ($called, $dist, $vsn) = @_;
+
+  my $path = $called->find($dist, $vsn);
+  require lib;
+  lib->import($path);
+}
+
+
+=head2 import(...)
+
+This does the work when you write something like
+
+ use lib::vswitch 0.73 BioPerl => '1.2.3';
+ # 0.73 would be a minimum version for lib::vswitch itself.
+ 
+ use lib::vswitch 'Foo-Bar' => '0.05-hacked';
+
+Currently it takes one ($dist => $vsn) pair and calls L</uselib> with
+them.
+
+Extra flags or the ability to C<uselib> multiple pairs may be added
+later.
+
+=cut
+
+sub import {
+  my ($called, @arg) = @_;
+
+  if (0 == @arg) {
+    # nothing to do
+  } elsif (2 == @arg) {
+    $called->uselib(@arg);
+  } else {
+    require Carp;
+    Carp::croak("Syntax: use $called 'Dist-Name' => 'version-string'");
+  }
+}
+
 1;
