@@ -162,6 +162,25 @@ is itself a problem.
 
 Will making it easier to manage the knock-on problems make that worse?
 
+
+=head1 PACKAGE GLOBALS
+
+=head2 %VSW
+
+This hash is used to prevent the use of different versions of the same
+dist.
+
+It is offered as part of the public API for this module to improve
+transparency.  Keys are dist names, values are the versions set by
+L</uselib>.
+
+Writing to it is likely to cause problems.
+
+=cut
+
+our %VSW; # key = dist, value = version string
+
+
 =head1 CLASS METHODS
 
 These are not particularly intended for normal use by client code, but
@@ -194,14 +213,36 @@ sub find {
 Discover the new path using L</find>, then ask L<lib> to add it to
 C<@INC> .
 
+This checks and updates L</%VSW> to prevent multiple C<uselib> of the
+same dist.
+
 =cut
 
 sub uselib {
   my ($called, $dist, $vsn) = @_;
 
+  return if __vsw_take($dist, $vsn); # idempotence
   my $path = $called->find($dist, $vsn);
   require lib;
   lib->import($path);
+}
+
+
+# Separated from uselib so subclass could share %VSW more neatly.
+sub __vsw_take { # not a method
+  my ($dist, $vsn) = @_;
+  if (defined $VSW{$dist} && $VSW{$dist} eq $vsn) {
+    # already done it
+    return 1;
+  } elsif (defined $VSW{$dist}) {
+    # prevent it
+    require Carp;
+    Carp::croak("Dist '$dist' already switched to version $VSW{$dist}, cannot also switch to version $vsn");
+  } else {
+    # record it
+    $VSW{$dist} = $vsn;
+    return 0;
+  }
 }
 
 
