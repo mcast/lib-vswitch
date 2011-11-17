@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 6;
+use Test::More tests => 7;
 use lib 't/tlib';
 
 use lib::vswitch Example => '0.057';
@@ -27,3 +27,6 @@ TODO: {
       "found $INC{'Example/Removed.pm'}";
     } || $@, qr{^found }, 'E:R should not be found');
 }
+
+isnt(eval "no lib::vswitch; 'ok'" || $@,
+     'ok', "Unimport is not implemented");

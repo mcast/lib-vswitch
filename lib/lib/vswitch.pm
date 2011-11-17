@@ -278,4 +278,16 @@ sub import {
   }
 }
 
+
+=head1 CAVEATS AND BUGS
+
+There is no unimport via C<no>.  It is not clear that this could be
+done safely.
+
+=cut
+
+sub unimport {
+  die "Not implemented (unlikely to be safe)";
+}
+
 1;
