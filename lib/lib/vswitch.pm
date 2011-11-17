@@ -126,14 +126,16 @@ Prevent the simultaneous import of two versions of the same dist.
 
 Allow safe sharing of known-version dist install trees.
 
+=back
+
+and more in the managing of installations of dists
+
+=over 4
+
 =item *
 
 It should be as easy to install another version as to install any
 other dist.
-
-=back
-
-and more in the managing of installations of dists
 
 =item *
 
