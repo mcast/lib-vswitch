@@ -223,6 +223,11 @@ same dist.
 sub uselib {
   my ($called, $dist, $vsn) = @_;
 
+  unless (defined $dist && defined $vsn && $dist ne '' && $vsn ne '') {
+    require Carp;
+    Carp::croak("Expected \$dist => \$version, got '$dist' => '$vsn'");
+  }
+
   return if __vsw_take($dist, $vsn); # idempotence
   my $path = $called->find($dist, $vsn);
   require lib;

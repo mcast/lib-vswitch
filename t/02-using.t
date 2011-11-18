@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 7;
+use Test::More tests => 13;
 use lib 't/tlib';
 
 use lib::vswitch Example => '0.057';
@@ -30,3 +30,23 @@ TODO: {
 
 isnt(eval "no lib::vswitch; 'ok'" || $@,
      'ok', "Unimport is not implemented");
+
+
+# Try some silly corner cases
+my @silly =
+  (# [ qr{error}, dist => vsn ]
+   [ qr{^ERR:Expected}, 'Example-Not-Present' => undef ],
+   [ qr{^ERR:Expected}, Example => '' ], # note, already switched this one
+   [ qr{^ERR:Expected}, '' => '' ],
+   [ qr{^ERR:Expected}, undef => undef ],
+   [ qr{^ERR:Syntax: use}, 'foo' ],
+   [ qr{^ERR:Syntax: use}, qw( foo bar baz ) ]);
+for (my $i=0; $i<@silly; $i++) {
+  my ($want_err, @arg) = @{ $silly[$i] };
+  my $got = eval {
+    local $SIG{__WARN__} = sub {}; # silence "undef in concatenation" warnings
+    lib::vswitch->import(@arg);
+    'ok'
+  } || "ERR:$@";
+  like($got, $want_err, "\$silly[$i] should fail");
+}
