@@ -32,10 +32,11 @@ simultaneously.
 Modules from one version of a dist may rightfully assume that other
 modules from the same dist are of the same version.
 
-Ensuring this is a useful thing L<lib::vswitch> should do.  In the
-case where the dist is not already present on C<@INC> this simply
-requires not adding a dist more than once, and this is mediated by
-L</%VSW>.
+Maintaining the validity of this assumption is something
+L<lib::vswitch> should do, and ad-hoc version switching may not.
+
+When the dist is B<not> already present on C<@INC>, we simply add a
+dist no more than once.  This is mediated by L</%VSW> and L</uselib>.
 
 Below are cases where the dist C<Foo> has version 1 already available
 on C<@INC>, and the caller requests to C< uselib(Foo => 2) >
