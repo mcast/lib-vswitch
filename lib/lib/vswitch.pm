@@ -81,6 +81,26 @@ includes the entire C<Foo::> namespace.  This may be found by reading
 the C<.packlist> if that is available, or for a vswitch-installed dist
 by scanning the tree.
 
+=head2 Support monkey-patching
+
+Mechanisms to prevent accidental mixing of modules from different
+versions may also make it harder to deliberately replace portions of
+the dist.
+
+This is undesirable, because the maintenance of this code was already
+complicated before we got involved.  Better would be for the code
+doing this to make it clear what is happening.
+
+A likely solution is that the dist version being switched in has local
+edits applied: C<< use lib::vswitch BioPerl => '1.2.3-patched' >>.
+
+The "do not vswitch a dist twice" rule can be prevented by deleting
+from L</%VSW>.  A neater way might be nice.
+
+The "do not vswitch when the new tree contains an already-loaded
+module" rule may need an override.  Possibly of the form C<use
+lib::vswitch Foo => 2, -force_loaded => qr{^Foo::A$} >.
+
 
 =head1 RATIONALE
 
