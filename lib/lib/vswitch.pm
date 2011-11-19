@@ -21,11 +21,15 @@ lib::vswitch - @INC switch to select another version
 =head1 DESCRIPTION
 
 This module adds to C<@INC> the necessary directories for a specific
-version of a distribution.
+version of a distribution (dist), so the modules inside may be loaded.
 
 It also takes steps to ensure scripts loading multiple modules do not
-inadvertently attempt to use two different versions of a distribution
+inadvertently attempt to C<use> two different versions of a dist
 simultaneously.
+
+The files for the specified version of the dist must have been
+installed already, in a particular way.
+XXX: This module does not yet help with that, but it should.
 
 
 =head1 RATIONALE
