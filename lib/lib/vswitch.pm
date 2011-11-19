@@ -3,6 +3,8 @@ use warnings;
 package lib::vswitch;
 
 use File::ShareDir 'class_file';
+use File::Spec;
+
 
 =head1 NAME
 
@@ -302,16 +304,52 @@ sub uselib {
     Carp::croak("Expected \$dist => \$version, got '$dist' => '$vsn'");
   }
 
-  return if __vsw_take($dist, $vsn); # idempotence
+  return if __vsw_take($dist, $vsn, 0); # idempotence
+
   my $path = $called->find($dist, $vsn);
+  my @shadowed_loaded = $called->contains($path, keys %INC);
+  if (@shadowed_loaded) {
+    my @descr = map { $called->describe_file($_) } @shadowed_loaded;
+    require Carp;
+    local $" = ', ';
+    Carp::croak("Cannot swtich dist '$dist' to version $vsn, would shadow already loaded modules: @descr");
+  }
+
+  return if __vsw_take($dist, $vsn, 1); # no multi-switch
+
   require lib;
   lib->import($path);
+}
+
+sub contains {
+  my ($called, $lib_path, @rel_path) = @_;
+  return grep {
+    my $path = File::Spec->catfile($lib_path, $_);
+    -e $path;
+  } @rel_path;
+}
+
+sub describe_file {
+  my ($called, $rel_path) = @_;
+  # Describe $rel_path (likely, a key from %INC)
+  # For debug purposes only.
+
+  if ($rel_path =~ m{^[A-Za-z0-9_]+(/[A-Za-z0-9_]+)*\.pm$}) {
+    # looks like a module (un*x assumption?)
+    my $mod = $rel_path;
+    $mod =~ s/\.pm$//;
+    $mod =~ s{/}{::}g;
+    my ($ok, $vsn) = eval {(1, $mod->VERSION)};
+    return $ok ? qq{$mod v$vsn} : $mod;
+  } else {
+    return $rel_path;
+  }
 }
 
 
 # Separated from uselib so subclass could share %VSW more neatly.
 sub __vsw_take { # not a method
-  my ($dist, $vsn) = @_;
+  my ($dist, $vsn, $write) = @_;
   if (defined $VSW{$dist} && $VSW{$dist} eq $vsn) {
     # already done it
     return 1;
@@ -319,10 +357,13 @@ sub __vsw_take { # not a method
     # prevent it
     require Carp;
     Carp::croak("Dist '$dist' already switched to version $VSW{$dist}, cannot also switch to version $vsn");
-  } else {
+  } elsif ($write) {
     # record it
     $VSW{$dist} = $vsn;
     return 0;
+  } else {
+    # we would switch, unless we find another reason not to
+    return ();
   }
 }
 
