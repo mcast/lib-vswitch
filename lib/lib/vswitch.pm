@@ -347,7 +347,7 @@ sub contains {
 sub describe_file {
   my ($called, $rel_path) = @_;
   # Describe $rel_path (likely, a key from %INC)
-  # For debug purposes only.
+  # For debug purposes only; and for loaded modules only.
 
   if ($rel_path =~ m{^[A-Za-z0-9_]+(/[A-Za-z0-9_]+)*\.pm$}) {
     # looks like a module (un*x assumption?)
@@ -355,7 +355,7 @@ sub describe_file {
     $mod =~ s/\.pm$//;
     $mod =~ s{/}{::}g;
     my ($ok, $vsn) = eval {(1, $mod->VERSION)};
-    return $ok ? qq{$mod v$vsn} : $mod;
+    return $ok && defined $vsn ? qq{$mod v$vsn} : $mod;
   } else {
     return $rel_path;
   }
