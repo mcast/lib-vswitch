@@ -17,7 +17,7 @@ use_ok('Example::Removed');
 
 my $try = eval q{use lib::vswitch Example => '0.057'; 'ok' } || $@;
 isnt($try, 'ok', 'refuse switch to 0.057');
-like($try, qr{0\.050.*Example::Removed.*0\.057}, '  refusal message');
+like($try, qr{0\.057.*Example::Removed v0\.050}, '  refusal message');
 
 isnt(eval { require Example::Feature; 'loaded' } || $@,
      'loaded', 'module from 0.057 should not be available');
