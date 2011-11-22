@@ -4,6 +4,7 @@ package lib::vswitch;
 
 use File::ShareDir 'class_file';
 use File::Spec;
+use ExtUtils::Installed;
 
 
 =head1 NAME
@@ -82,6 +83,9 @@ various versions, all of those modules; but without assuming that it
 includes the entire C<Foo::> namespace.  This may be found by reading
 the C<.packlist> if that is available, or for a vswitch-installed dist
 by scanning the tree.
+
+Packlists are often not available for Perl modules shipped with a
+Linux distribution (and perhaps in other cases).
 
 =head2 Support monkey-patching
 
@@ -315,6 +319,17 @@ sub uselib {
     Carp::croak("Cannot swtich dist '$dist' to version $vsn, would shadow already loaded modules: @descr");
   }
 
+  my %used_dist = $called->file2dist(\%INC);
+  if (defined (my $detail = $used_dist{$dist})) {
+    my @descr = map { $called->describe_file($_) } keys %{ $detail->{incd} };
+    my $info = ($detail->{packlist_file}
+		? " (see $$detail{packlist_file})"
+		: '');
+    require Carp;
+    local $" = ', ';
+    Carp::croak("Cannot switch dist '$dist' to version $vsn, already loaded modules from another version$info: @descr");
+  }
+
   return if __vsw_take($dist, $vsn, 1); # no multi-switch
 
   require lib;
@@ -346,6 +361,62 @@ sub describe_file {
   }
 }
 
+sub file2dist {
+  my ($called, $inc) = @_;
+
+  my %loaded; # key = path to report on, value = required name that loaded it
+  my %unknown; # same, but dwindling keys
+  %unknown = %loaded = reverse %$inc;
+
+  # key = $dist, value = { incd => \%inc_subset }
+  # plus another $dist='', listing modules of unknown providence
+  my %out;
+
+  # This does a lot of I/O.  EU:I->new can cache the result, but we
+  # are about to change @INC, invalidating it.
+  #
+  # XXX: drive EU:I as incremental packlist finder, using inc_override
+  # This would also let us see shadowed dists.
+  #
+  # XXX: realpath it; EU:I doesn't see packlist content in relative @INC ?
+  # also need to realpath the packlist contents, to support (nonstandard?) relative packlist, such as in the test
+  my $installed = ExtUtils::Installed->new;
+
+  foreach my $distmod ($installed->modules) {
+    # What EU:I calls "the module" maps exactly to what we call a dist
+    my $dist = $distmod;
+    $dist =~ s{::}{-}g;
+
+    # Files in that dist.  (some more info available)
+    my @files = $installed->files($distmod);
+#    my $distmod_vsn = $installed->version($distmod); # undef: various reasons
+#    my $packlist = $installed->packlist($distmod);
+    my $packlist_file = $installed->packlist($distmod)->packlist_file;
+
+    # Are any of them in %loaded?
+    my @incd_files = grep { exists $loaded{$_} } @files;
+    next unless @incd_files;
+
+    my @double_dist = grep { !exists $unknown{$_} } @incd_files;
+    warn "Unsettling... some files appear to belong to multiple dists\n".
+      "(@double_dist)" if @double_dist;
+    delete @unknown{@incd_files};
+
+    # We couldn't store shadowed dists here anyway
+    my %incd;
+    my @inc_requested = @loaded{@incd_files};
+    @incd{@inc_requested} = @incd_files;
+    $out{$dist} = { incd => \%incd, packlist_file => $packlist_file };
+  }
+
+  # There is probably quite a lot of this from Perl itself,
+  # but it is probably also where dist-conflicting files would end up
+  $out{''} = { incd => { reverse %unknown } }
+    if keys %unknown;
+
+  #use YAML 'Dump'; warn Dump({ out => \%out, installed => $installed });
+  return %out;
+}
 
 # Separated from uselib so subclass could share %VSW more neatly.
 sub __vsw_take { # not a method
