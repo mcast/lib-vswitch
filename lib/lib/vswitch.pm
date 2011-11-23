@@ -3,6 +3,8 @@ use warnings;
 package lib::vswitch;
 
 use File::ShareDir 'class_file';
+use File::Spec;
+
 
 =head1 NAME
 
@@ -30,6 +32,80 @@ simultaneously.
 The files for the specified version of the dist must have been
 installed already, in a particular way.
 XXX: This module does not yet help with that, but it should.
+
+=head2 Avoid taking modules from two versions of a dist
+
+Modules from one version of a dist may rightfully assume that other
+modules from the same dist are of the same version.
+
+Maintaining the validity of this assumption is something
+L<lib::vswitch> should do, and ad-hoc version switching may not.
+
+When the dist is B<not> already present on C<@INC>, we simply add a
+dist no more than once.  This is mediated by L</%VSW> and L</uselib>.
+
+Below are cases where the dist C<Foo> has version 1 already available
+on C<@INC>, and the caller requests to C< uselib(Foo => 2) >
+
+=over 4
+
+=item A.
+
+Module C<Foo::A> was loaded from C<Foo v1>.  Version switch to dist
+C<Foo v2> makes a different version of C<Foo::A> available.
+
+=item B.
+
+Module C<Foo::B1> was loaded from C<Foo v1>.  Version switch to dist
+C<Foo v2> makes available a C<Foo::B2> which expects C<Foo::B1> to
+load from C<Foo v2> also.
+
+=item C.
+
+Version switch to dist C<Foo v2> - no modules loaded from C<Foo> yet.
+
+Module C<Foo::C3> appears in both versions, but there is no problem
+because the newer one is found and the old one is shadowed.  This is
+otherwise like C<Foo::A> above.
+
+If module C<Foo::C1> appears only in v1 and C<Foo::C2> appears only in
+v2 (modules added to or removed from the dist), it becomes possible to
+load either or both.  Each could reasonably expect a version match
+with C<Foo:::C3>, and the absence of the module from the other
+version.
+
+=back
+
+For A and B, it was too late to vswitch, so we should refuse to try.
+For C, we must prevent the loading of modules from the shadowed dist.
+
+Case A is simple to detect, though it needs some I/O.
+
+Cases B and C requires the knowledge that C<Foo> dist contains, in
+various versions, all of those modules; but without assuming that it
+includes the entire C<Foo::> namespace.  This may be found by reading
+the C<.packlist> if that is available, or for a vswitch-installed dist
+by scanning the tree.
+
+=head2 Support monkey-patching
+
+Mechanisms to prevent accidental mixing of modules from different
+versions may also make it harder to deliberately replace portions of
+the dist.
+
+This is undesirable, because the maintenance of this code was already
+complicated before we got involved.  Better would be for the code
+doing this to make it clear what is happening.
+
+A likely solution is that the dist version being switched in has local
+edits applied: C<< use lib::vswitch BioPerl => '1.2.3-patched' >>.
+
+The "do not vswitch a dist twice" rule can be prevented by deleting
+from L</%VSW>.  A neater way might be nice.
+
+The "do not vswitch when the new tree contains an already-loaded
+module" rule may need an override.  Possibly of the form C<use
+lib::vswitch Foo => 2, -force_loaded => qr{^Foo::A$} >.
 
 
 =head1 RATIONALE
@@ -232,16 +308,52 @@ sub uselib {
     Carp::croak("Expected \$dist => \$version, got '$dist' => '$vsn'");
   }
 
-  return if __vsw_take($dist, $vsn); # idempotence
+  return if __vsw_take($dist, $vsn, 0); # idempotence
+
   my $path = $called->find($dist, $vsn);
+  my @shadowed_loaded = $called->contains($path, keys %INC);
+  if (@shadowed_loaded) {
+    my @descr = map { $called->describe_file($_) } @shadowed_loaded;
+    require Carp;
+    local $" = ', ';
+    Carp::croak("Cannot swtich dist '$dist' to version $vsn, would shadow already loaded modules: @descr");
+  }
+
+  return if __vsw_take($dist, $vsn, 1); # no multi-switch
+
   require lib;
   lib->import($path);
+}
+
+sub contains {
+  my ($called, $lib_path, @rel_path) = @_;
+  return grep {
+    my $path = File::Spec->catfile($lib_path, $_);
+    -e $path;
+  } @rel_path;
+}
+
+sub describe_file {
+  my ($called, $rel_path) = @_;
+  # Describe $rel_path (likely, a key from %INC)
+  # For debug purposes only.
+
+  if ($rel_path =~ m{^[A-Za-z0-9_]+(/[A-Za-z0-9_]+)*\.pm$}) {
+    # looks like a module (un*x assumption?)
+    my $mod = $rel_path;
+    $mod =~ s/\.pm$//;
+    $mod =~ s{/}{::}g;
+    my ($ok, $vsn) = eval {(1, $mod->VERSION)};
+    return $ok ? qq{$mod v$vsn} : $mod;
+  } else {
+    return $rel_path;
+  }
 }
 
 
 # Separated from uselib so subclass could share %VSW more neatly.
 sub __vsw_take { # not a method
-  my ($dist, $vsn) = @_;
+  my ($dist, $vsn, $write) = @_;
   if (defined $VSW{$dist} && $VSW{$dist} eq $vsn) {
     # already done it
     return 1;
@@ -249,10 +361,13 @@ sub __vsw_take { # not a method
     # prevent it
     require Carp;
     Carp::croak("Dist '$dist' already switched to version $VSW{$dist}, cannot also switch to version $vsn");
-  } else {
+  } elsif ($write) {
     # record it
     $VSW{$dist} = $vsn;
     return 0;
+  } else {
+    # we would switch, unless we find another reason not to
+    return ();
   }
 }
 
