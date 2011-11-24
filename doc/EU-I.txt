@@ -1,0 +1,36 @@
+I said ExtUtils::Installed does a lot of I/O, when I read the source.
+Then I ran it, in a ballpark sort of way.  PERL5LIB includes some
+small NFS trees.
+
+  OS (Debian Lenny) Perl on local spinny disk,   ~1.5 sec
+
+  Large local Perl install used by many project groups, on NFS
+  (533 packlists, 17k files mentioned; /software/perl-5.12.2 )
+
+		       with a cold-ish cache, 5m 48s
+		       with a hot cache,        ~16s
+
+
+'strace -c -tt -T -vx' for a later hotcache NFS run
+  % time     seconds  usecs/call     calls    errors syscall
+  ------ ----------- ----------- --------- --------- ----------------
+   30.62    0.051497           1     51239           chdir
+   29.75    0.050034           1     38215           lstat64
+   29.07    0.048884           2     30843        44 open
+    5.06    0.008503           0     59720           getdents64
+    4.08    0.006857           1     11372     10383 stat64
+    0.79    0.001322           0     30799           close
+    0.49    0.000831           0     30756           fstat64
+
+Noting also, on the strace'd run,
+
+ getdents64 tells which elements are directories, but we lstat anyway
+
+ File::Find might be faster without the chdir?  Or maybe opendir would
+ be slower without.
+
+   9.97s  lstat64
+   9.54s  open,O_DIRECTORY  (96.8% of all open calls)
+   9.26s  chdir
+   2.24s  getdents64
+   0.53s  open file
