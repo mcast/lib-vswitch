@@ -321,9 +321,20 @@ sub uselib {
 
   return if __vsw_take($dist, $vsn, 1); # no multi-switch
 
+  return $called->do_import($path, $dist, $vsn);
+}
+
+
+# a YAGNI hook
+sub do_import {
+  my ($called, $path,
+      $dist, $vsn) # for info only
+    = @_;
+
   require lib;
   lib->import($path);
 }
+
 
 sub contains {
   my ($called, $lib_path, @rel_path) = @_;
