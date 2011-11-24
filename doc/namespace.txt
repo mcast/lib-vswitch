@@ -1,0 +1,77 @@
+From: upload@pause.perl.org
+Subject: Module submission lib::vswitch
+
+
+The following module was proposed for inclusion in the Module List:
+
+  modid:       lib::vswitch
+  DSLIP:       adppp
+  description: select another version of 'dist' into @INC
+  userid:      MCAST (Matthew Astley)
+  chapterid:   27 (Pragma)
+  communities:
+    none; rt.cpan.org or Github merge request
+
+  similar:
+    lib Project::Libs lib::restrict Apache::PerlVINC Module::Mask
+
+  rationale:
+
+    Observed problem to solve:
+
+    Some code-bases rely on a specific (not the latest) version of a
+    distribution of modules. They usually manage this by installing it
+    during app setup and calling "use lib" with that. Hopefully, only
+    once.
+
+    I found many libraries to do things to @INC, some discussed below,
+    but nothing to manage potential conflict e.g. loading one module
+    from BioPerl-0.7.2 before putting BioPerl-1.2.3 onto @INC - YMMV!
+
+    Choice of lib::vswitch name:
+
+    It needs to be not much longer than 'lib' and imply change to @INC.
+
+    It isn't specific to the Bio:: namespace, although this is the area
+    I currently observe the problem.
+
+    I am cautious to request lib:: namespace, hence registering before
+    uploading. Code is at https://github.com/mca-wtsi/lib-vswitch
+
+    It is not too late to change the name, if you have a better idea.
+
+    Related modules:
+
+    lib - proposed lib::vswitch does the same, but without requiring
+    the caller to know the path, and with more checking
+
+    Project::Libs - another @INC extender, in non-lib namespace
+
+    lib::restrict - another @INC extender, in lib namespace
+
+    Apache::PerlVINC - module version switching, in mod_perl context
+
+    Module::Mask - lib::vswitch may need to do something similar, to
+    prevent accidents with partially shadowed dists
+
+    I don't see a general way to compose such features together, and I
+    think that would be a separate problem.
+
+    However, tweaking of lib::vswitch by the caller should be possible
+    by subclassing (but YAGNI?).
+
+    Thanks, -- Matthew
+
+  enteredby:   MCAST (Matthew Astley)
+  enteredon:   Thu Nov 24 00:27:52 2011 GMT
+
+The resulting entry would be:
+
+lib::
+::vswitch         adppp select another version of 'dist' into @INC   MCAST
+
+
+Thanks for registering,
+-- 
+The PA
+    USE
